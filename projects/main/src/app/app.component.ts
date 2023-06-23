@@ -5,7 +5,8 @@ import {
   ViewChild,
   ViewContainerRef,
 } from '@angular/core';
-import { Router } from '@angular/router';
+import { NavigationEnd, Router } from '@angular/router';
+import { filter } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -26,7 +27,7 @@ export class AppComponent {
             type: 'module',
             remoteEntry: 'http://localhost:9001/remoteEntry.js',
             exposedModule: './AppModule',
-          }).then((m) => this.loadRemoteRootModule(m)),
+          }).then((m) => this.loadRemoteRootModule(m, 'mfe1')),
       },
       {
         path: 'mfe2',
@@ -35,12 +36,22 @@ export class AppComponent {
             type: 'module',
             remoteEntry: 'http://localhost:9002/remoteEntry.js',
             exposedModule: './AppModule',
-          }).then((m) => this.loadRemoteRootModule(m)),
+          }).then((m) => this.loadRemoteRootModule(m, 'mfe2')),
       },
     ]);
   }
 
-  loadRemoteRootModule(m: any) {
+  loadRemoteRootModule(m: any, prefix: string) {
+    setTimeout(() => {
+      (m.AppModule._router as Router).events
+        .pipe(filter((event: any) => event instanceof NavigationEnd))
+        .subscribe((res) => {
+          console.log(res);
+          const url = res.url === '/' ? '' : res.url
+          this.router.navigateByUrl(`/${prefix}${url}`)
+        });
+    });
+
     const appModuleImports = m.AppModule.ɵinj.imports;
     const appRoutingModule = appModuleImports.find(
       (i: any) => i.name === 'AppRoutingModule'
