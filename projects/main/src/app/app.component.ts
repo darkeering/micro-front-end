@@ -1,6 +1,5 @@
 import { loadRemoteModule } from '@angular-architects/module-federation';
 import {
-  AfterViewInit,
   Component,
   Directive,
   ViewChild,
@@ -8,27 +7,17 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 
-@Directive({
-  selector: '[container]',
-})
-export class ContainerDirective {
-  constructor(public viewContainerRef: ViewContainerRef) {}
-}
-
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
 })
-export class AppComponent implements AfterViewInit {
-  @ViewChild(ContainerDirective, { static: true }) container!: ContainerDirective;
+export class AppComponent {
   title = 'main';
 
   component: any;
 
-  constructor(
-    private router: Router,
-  ) {
+  constructor(private router: Router) {
     this.router.resetConfig([
       {
         path: 'mfe1',
@@ -37,23 +26,36 @@ export class AppComponent implements AfterViewInit {
             type: 'module',
             remoteEntry: 'http://localhost:9001/remoteEntry.js',
             exposedModule: './AppModule',
-          }).then((m) => {
-            console.log(m);
-            const list = m.AppModule.ɵinj.imports;
-            const appRoutingModule = list.find(
-              (i: any) => i.name === 'AppRoutingModule'
-            );
-            appRoutingModule.ɵinj.imports[0].providers = [
-              appRoutingModule.ɵinj.imports[0].providers[2],
-            ];
-
-            this.component = m.AppModule.AppComponent;
-            this.container.viewContainerRef.createComponent(this.component)
-            return m.AppModule;
-          }),
+          }).then((m) => this.loadRemoteRootModule(m)),
+      },
+      {
+        path: 'mfe2',
+        loadChildren: () =>
+          loadRemoteModule({
+            type: 'module',
+            remoteEntry: 'http://localhost:9002/remoteEntry.js',
+            exposedModule: './AppModule',
+          }).then((m) => this.loadRemoteRootModule(m)),
       },
     ]);
   }
 
-  ngAfterViewInit() {}
+  loadRemoteRootModule(m: any) {
+    const appModuleImports = m.AppModule.ɵinj.imports;
+    const appRoutingModule = appModuleImports.find(
+      (i: any) => i.name === 'AppRoutingModule'
+    );
+    const appRoutingModuleImports = appRoutingModule.ɵinj.imports;
+    appRoutingModuleImports[0].providers = [
+      appRoutingModuleImports[0].providers[2],
+    ];
+    appRoutingModuleImports[0].providers[0].useValue = [
+      {
+        path: '',
+        component: m.AppModule.ɵmod.bootstrap[0],
+        children: appRoutingModuleImports[0].providers[0].useValue,
+      },
+    ];
+    return m.AppModule;
+  }
 }
