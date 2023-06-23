@@ -1,23 +1,37 @@
 import { loadRemoteModule } from '@angular-architects/module-federation';
+import { HttpClient } from '@angular/common/http';
 import {
   Component,
   Directive,
+  OnInit,
   ViewChild,
   ViewContainerRef,
 } from '@angular/core';
 import { Router } from '@angular/router';
+import { httpInterceptorProviders } from './interceptor';
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   title = 'main';
 
   component: any;
 
-  constructor(private router: Router) {
+  constructor(private router: Router, private http: HttpClient) {}
+  ngOnInit(): void {
+    this.resetRouterConfig();
+  }
+
+  sendHttpRequest() {
+    this.http.get('/api').subscribe((res) => {
+      console.log(res);
+    });
+  }
+
+  resetRouterConfig() {
     this.router.resetConfig([
       {
         path: 'mfe1',
@@ -26,7 +40,11 @@ export class AppComponent {
             type: 'module',
             remoteEntry: 'http://localhost:9001/remoteEntry.js',
             exposedModule: './AppModule',
-          }).then((m) => this.loadRemoteRootModule(m)),
+          }).then((m) => {
+            const appModuleProviders = m.AppModule.ɵinj.providers
+            appModuleProviders.unshift(httpInterceptorProviders)
+            return this.loadRemoteRootModule(m);
+          }),
       },
       {
         path: 'mfe2',
